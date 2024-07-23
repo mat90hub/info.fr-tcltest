@@ -1,0 +1,1907 @@
+\input texinfo   @c -*-texinfo-*-
+@c %**start of header (This is for running Texinfo on a region.)
+@setfilename tcltest.fr.info
+@documentlanguage fr_FR
+@documentencoding UTF-8
+
+@settitle Guide de l’utilisateur du paquetage tcltest
+@c %**end of header (This is for running Texinfo on a region.)
+
+@paragraphindent 0
+
+@dircategory Programming
+@direntry
+* tcltest: (tcltest).               Tester des programmes grâce à Tcl.
+@end direntry
+
+
+@set TITLE Guide de l'utilisateur de tcltest
+
+@set xref-automatic-section-title
+
+@iftex
+@set DOCUMENT articley
+@set CHAPTER chapter
+@set SECTION section
+@end iftex
+
+@ifinfo
+@set DOCUMENT Info file
+@set CHAPTER major node
+@set SECTION minor node
+@end ifinfo
+
+@ifhtml
+@set DOCUMENT Web page
+@set CHAPTER chapter
+@set SECTION section
+@end ifhtml
+
+
+@titlepage
+@title @value{TITLE}
+@page
+@vskip 0pt plus 1fill
+@insertcopying
+@end titlepage
+
+@ifnottex
+@node Top
+@top Tester les programmes avec tcltest
+
+Tcltest est une extension de Tcl, qui permet de construire des suites de
+tests, ou bancs de tests. Ces bancs de tests deviennent rapidement
+essentiels pour le développement de projets conséquents, en
+facilitant la mise au point par des tests réguliers.
+
+Écrit en Tcl, donc transparent à tout utilisateur, ces commandes peuvent
+s’adapter à tout programme se lançant dans une console.
+
+Nous allons d’abord présenter des exemples simples qui seront suivis d’une
+présentation plus systématique de toutes les commandes de cette
+extension. Cette présentation plus systématique sera terminée par des
+exemples d’utilisation avancée.
+
+
+@end ifnottex
+
+
+@c ----------------------------------------------------------------------------
+@c bibliographie:
+@c https://www.tcl-lang.org/man/tcl/TclCmd/tcltest.htm
+@c https://wiki.tcl-lang.org/page/tcltest
+@c https://wuhrr.wordpress.com/2011/03/28/getting-started-with-tcltest/
+@c ----------------------------------------------------------------------------
+
+@c ----------------------------------------------------------------------------
+@node Un premier exemple simple
+@chapter Un premier exemple simple.
+@c ----------------------------------------------------------------------------
+
+Construisons un premier fichier de script @file{sum.tcl} qui aura le contenu
+suivant.
+
+@example
+proc sum @{a b@} @{
+   expr @{$a + $b@}
+@}
+@end example
+
+Puis nous constuisons un script qui lancera les tests sur ce fichier qui
+s’appellera @file{all.tcl}.
+
+@example
+package require tcltest
+namespace import ::tcltest::*
+runAllTests
+@end example
+
+Enfin, nous écrivons les fichiers décrivant les tests à faire. Par
+défaut, nous lui donnant le même nom que le fichier à tester
+@file{sum.tcl}, mais avec une autre extension, @file{sum.test}. La
+phrase introductive que l’on met classiquement en début de chaque
+fichier source sous Linux permet à un éditeur comme Emacs de reconnaître
+que ces fichiers sont bien tous les deux des fichiers à exécuter avec
+Tcl (plus précisément @code{tclsh}, pour une application ne demandant
+pas l’intervention de l’extension graphique Tk).
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+package require tcltest
+namespace import ::tcltest::*
+
+# le fichier à tester
+source sum.tcl
+
+# les essais à effectuer
+test sum_addTwoZerosExpectZero @{
+    Test: [sum 0 0] == 0
+@} -body @{
+    sum 0 0
+@} -result 0
+
+test sum_addTwoPositiveNumbers @{@} -body @{
+    sum 4 9
+@} -result 13
+
+test sum_addPositiveToNegative @{@} -body @{
+    sum -95 72
+@} -result -23
+
+cleanupTests
+@end example
+
+Le test s’effectue alors simplement en executant la commande
+suivant sous un shell comme Bash.
+
+@example
+tclsh all.tcl
+@end example
+
+Ce qui donne un résultat comme celui ci.
+
+@example
+Tests running in interp:  /usr/bin/tclsh
+Tests located in:  ...
+Tests running in:  ...
+Temporary files stored in ...
+Test files run in separate interpreters
+Running tests that match:  *
+Skipping test files that match:  l.*.test
+Only running test files that match:  *.test
+Tests began at Sat Nov 23 21:30:11 CET 2019
+sum.test
+
+Tests ended at Sat Nov 23 21:30:11 CET 2019
+all.tcl:	Total	3	Passed	3	Skipped	0	Failed	0
+Sourced 1 Test Files.
+@end example
+
+Ce résultat donne le nom du fichier de test lancé (@file{sum.test}) et le
+nombre de tests passés avec les résultats.
+
+Les essais s’écrivent toujours sur le schéma :
+
+@example
+test @i{nom_du_test} @{
+   @i{descriptif}
+@} -body @{
+   @i{corp_du_test_à_faire}
+@} -result @{
+   @i{résultat_attendu}
+@}
+@end example
+
+Les retours à la lignes et la syntaxe suivent les règles tcl. On peut voir plus
+haut que dans certains cas, nous avons sacrifié le descriptif.
+
+@c ----------------------------------------------------------------------------
+@node Séparer les fichiers sources des fichiers d’essais
+@chapter Séparer les fichiers sources des fichiers d’essais.
+@c ----------------------------------------------------------------------------
+
+Pour une meilleure maintenabilité, il est utile de séparer les fichiers
+définissant les essais à réaliser des fichiers sources.
+
+Sur notre exemple précédant, nous séparons le répertoire en deux sous-répertoires:
+@file{src} et @file{tests}. Dans le premier, nous mettons le fichier @file{sum.tcl},
+dans le second le fichier @file{all.tcl} et @file{sum.tests}. Il faut simplement
+changer l’indication @code{source} dans le fichier @file{sum.test} pour indiquer
+maintenant la position relative du fichier source vis-à-vis du fichier d’essai
+qui est exécuté @code{source ../src/tcl}.
+
+Nous pouvons aussi écrire d’autre fichier source dans le répertoire @file{src} comme
+par exemple le fichier @file{square.tcl}:
+
+@example
+proc square @{x@} @{
+    expr @{$x * $x@}
+@}
+@end example
+
+avec un fichier @file{square.test} dans le répertoire @file{test}.
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+package require tcltest
+namespace import ::tcltest::*
+
+# Le fichier source à tester
+source ../src/square.tcl
+
+# les tests à effectuer
+test square_ofZeroExpectsZero @{
+    Test: [square 0] == 0
+@} -body @{
+    square 0
+@} -result 0
+
+test square_ofNegativeExpectsPositive @{@} -body @{
+    square -9
+@} -result 81
+
+test square_ofPositiveExpectsPositive @{@} -body @{
+    square 19
+@} -result 361
+
+cleanupTests
+@end example
+
+Peu à peu nous construisons ainsi un répertoire @file{tests} parallèle au répertoire
+@file{src} et qui contient les essais sur les fichiers que nous crééons.
+
+
+@node Exclure certains tests
+@chapter Exclure certains tests.
+
+Dans le cours d’un développement il peut être utile d’exclure certaines fonctions
+qu’on sait ne pas fonctionner et qui ferait donc planter l’ensemble du
+banc de tests.
+
+Pour cela, nous modifions le fichier @file{all.tcl} pour qu’il accepte des couples
+de paramètres.
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+package require tcltest
+namespace import ::tcltest::*
+
+if @{$argc != 0@} @{
+    foreach @{action arg@} $::argv @{
+	if @{[string match -* $action]@} @{
+	    configure $action $arg
+	@} else @{
+	    $action $arg
+	@}
+    @}
+@}
+runAllTests
+@end example
+
+Nous avons utilisé les variables @code{argv} et @code{argc} de tclsh qui
+permettent de capturer les arguments qui sont donnés à un script.
+
+Nous verrons par la suite, que nous pouvons aussi écrire cette analyse
+des paramètres en ligne de commande en une seule ligne.
+
+@example
+package require tcltest
+
+::tcltest::configure -testdir \
+    [file dirname [file normalize [info script]]]
+
+if @{[llength $argv] > 0@} @{eval ::tcltest::configure $argv@}
+
+::tcltest::runAllTests
+
+::tcltest::cleanupTests 
+@end example
+
+Cette forme plus avancée de @file{all.tcl} utilise deux autres commandes
+avancées qui seront vues plus loin, pour s’assurer que le répertoire du
+script est bien le répertoire d’exécution par défaut et pour nettoyer
+ensuites les répertoires. Dans les exemples simples, ces deux
+instructions peuvent être omises.
+
+
+@node Sélectionner les fichiers source à tester
+@section Sélectionner les fichiers source à tester.
+
+Cette méthode qui utilise un fichier principal @file{all.tcl} permet de
+faire des bancs de tests pour lesquels nous omettons certains fichiers,
+que nous savons ne pas être encore au point.
+
+@example
+tclsh all.tcl -file sum.test
+@end example
+
+ou la commande suivante qui est équivalente:
+
+@example
+tclsh all.tcl matchFiles sum.test
+@end example
+
+Ceci peut ensuite être décliné en utilisant des motifs de sélection qui
+suivent les règles de Tcl. Voici un exemple qui ne fera les tests que sur
+les fichiers commençant par un @code{s}.
+
+@example
+tclsh all.tcl -file 's*.test'
+@end example
+
+On peut aussi inclure plusieurs sélections en même temps de la façon
+suivante :
+
+@example
+tclsh all.tcl -file 'su*.test sq*.test'
+@end example
+
+Par contre, si l’instruction '-file' est répétée deux fois, la dernière remplace et
+annule la première instruction. Dans le cas qui suit, c’est uniquement le test sur
+le script @code{sum.test} qui sera effectué.
+
+@example
+tclsh all.tcl -file square.test -file sum.test
+@end example
+
+
+@node Exclure certains fichiers sources
+@section Exclure certains fichiers sources.
+
+On exclut un fichier source des essais qui vont être effectués de la
+manière suivante.
+
+@example
+tclsh all.tcl -notfile sum.test
+@end example
+
+Une forme équivalent :
+
+@example
+tclsh all.tcl skipFiles sum.test
+@end example
+
+et on peut utiliser les motifs de sélection comme précédemment. Par
+exemple pour exclure des essais tous les fichiers commençant par un
+@code{a} ou un @code{b}.
+
+@example
+tclsh all.tcl -notfile 'a*.test b*.test'
+@end example
+
+
+@node Sélectionner les fichiers de test
+@section Sélectionner les fichiers de test.
+
+Les exemples précédents se basaient sur les noms des fichiers source
+pour effectuer ou non un test. Mais on peut aussi filter sur la base des
+fichiers donnant les essais.
+
+Nous allons ici uniquement lancer les fichiers d’essais dont le nom
+commencent par @code{square_}.
+
+@example
+tclsh all.tcl -match 'square_*'
+@end example
+
+forme équivalente
+
+@example
+tclsh all.tcl match 'square_*'
+@end example
+
+Et on peut aussi grouper plusieurs fichiers, comme par exemple ici les
+fichiers de test qui contiennent @code{Negative} ou @code{Zero} dans
+leur nom.
+
+@example
+tclsh all.tcl -match '*Negative* *Zero*'
+@end example
+
+
+@node Exclure certains fichiers de test
+@section Exclure certains fichiers de test.
+
+De la même façon, on peut aussi exclure des fichiers d’essai.  Nous
+allons ici exclure tous les fichiers d’essais qui commencent par
+@code{sum}
+
+@example
+tclsh all.tcl -skip 'sum*'
+# forme équivalente
+tclsh all.tcl skip 'sum*'
+
+# exclure des fichiers contenant Positive on Negative
+tclsh all.tcl -skip '*Positive* *Negative*'
+@end example
+
+
+@node Combiner les filtres
+@section Combiner les filtres.
+
+Les filtres que nous venons de voir peuvent être tous combinés.
+
+@example
+tclsh all.tcl -file square.test -skip '*Zero*'
+
+tclsh all.tcl -skip '*Negative*' -notfile sum.test
+@end example
+
+
+@node Donner des contraintes aux essais
+@chapter Donner des contraintes aux essais.
+
+
+On peut vouloir donner des contraintes du type
+@itemize @bullet
+@item faires des essais en fonction de la plateforme (window, linux, darwin)
+
+@item éviter des essais qui sont connus pour planter, pour réaliser les autres
+
+@item se donner des contraintes de temps d’exécution
+@end itemize
+
+Pour cela, nous allons d’abord modifier le contenu du fichier @file{all.tcl}
+de la façon suivante.
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+package require tcltest
+namespace import ::tcltest::*
+ 
+configure -verbose @{skip start@}
+eval ::tcltest::configure $::argv
+ 
+runAllTests
+@end example
+
+et nous mettons aussi sur le répertoire @file{test} le fichier définissant
+ces contraintes et qui se nomme @file{constraints.test}
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+package require tcltest
+namespace import ::tcltest::*
+ 
+test runOnUnix @{@}           -constraints unix -body @{@}
+test runOnWindows @{@}        -constraints win -body @{@}
+test runOnMac @{@}            -constraints mac -body @{@}
+test runNotOnUnix @{@}        -constraints tempNotUnix -body @{@}
+test knownBug @{@}            -constraints knownBug -body @{@}
+test customConstraints @{@}   -constraints timeConsuming -body @{@}
+test multipleConstraints @{@} -constraints @{timeConsuming unix@} -body @{@}
+test runOnlyOnMyLaptop @{@}   -constraints @{[info hostname] == "XPS"@} -body @{@}
+test runOnlyOnMyLaptop @{@}   -constraints @{[info hostname] != "XPS"@} -body @{@}
+
+cleanupTests
+@end example
+
+Ces noms de contraintes sont définis dans tcltest. @code{runOnMac} doit
+référencer les systèmes Mac9 et avant, car OsX répond maintenant à la
+classification Unix. La documentation officielle de tcltest donne ces
+contraintes.
+
+Nous voyons avec le test @code{multipleConstraints} que nous pouvons
+donner plusieurs contraintes en même temps. Les deux dernières
+contraintes sont des expressions (ici retrouver le nom d’hôte de
+l’ordinateur) qui si elles retournent VRAI, laisseront le test
+s’exécuter.
+
+La condition @code{timeConsuming} permet de ne pas lancer les essais qui
+sont trop longs. On peut aussi ne lancer qu’eux avec la commande.
+
+@example
+tclsh all.tcl -constraints timeConsuming -limitconstraints true
+@end example
+
+On peut aussi groupe plusieurs contraintes en utilisant les doubles guillemets.
+
+@example
+tclsh all.tcl -constraints "timeConsuming tempNotUnix" -limitconstraints true
+@end example
+
+Les contraintes prédéfinies les plus courantes sont:
+
+@table @asis
+@item platforms
+unix, win, mac, unixOrWin, macOrWin, macOrUnix, tempNotWin, tempNotMac
+
+@item Operating sysem
+nt 95 98
+
+@item Crash test
+unixCrash, winCrash, macCrash
+
+@item autres
+ emptyTest, knownBug, nonPortable, userInteraction, interactive,
+ nonBlockFiles, asyncPipeClose, unixExecs, hasIsoLocale, root, notRoot,
+ eformat, stdio, singleTestInterp
+@end table
+
+Voici aussi une liste de contraintes personnalisées possibles.
+
+@table @asis
+@item Durée
+timeConsumming
+
+@item Jamais le dimanche
+@{[clock format [clock seconds] -format “%a”] != “Sun”@}
+
+@item tous les premiers du mois
+@{clock format [clock seconds] -format “%d”] == “01”@}
+
+@item pour une version spécifique de tcl
+@{[info tclversion] >= “8.5”@}
+@end table
+
+Nous pouvons aussi sinon écrire des tests plus complexes
+de la façon suivante :
+
+@example
+proc myComplexConstraint @{@} @{
+   # code
+@}
+...
+test monTest @{@} -constraints [myComplexConstraint] -body @{ ...@}
+@end example
+
+
+
+@node Capturer la sortie standard
+@chapter Capturer la sortie standard.
+
+Toutes les procédures ne revoient pas une valeur, certaines le font sur
+la sortie standard (usuellement votre écran de console) et nous voulons
+le tester aussi.
+
+Nous allons d’abord re-créer la fonction classique "Bonjour" ainsi
+qu’une fonction qui affiche l’heure dans un fichier @file{hello.tcl}.
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+# hello.tcl
+
+proc greetings @{name@} @{
+   puts "Hello, $name !"
+@}
+
+proc showWeekDay @{@} @{
+   set now [clock seconds]
+   puts [clock format $now -format]
+@}
+@end example
+
+Le fichier @file{all.tcl} sera toujours le même.
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+#all.tcl
+
+package require tcltest
+namespace import ::tcltest::*
+
+configure -verbose @{skip start@}
+eval ::tcltest::configure $::argv
+
+runAllTests
+@end example
+
+
+Et le fichier pour tester la sortie sera @file{stdout.test}
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+#stdout.test
+
+# fichier à tester
+source ../src/hello.tcl
+
+# tests à accomplir
+test simple_capture @{
+  Capture the output of the greet
+@} -body @{
+  greeting world!
+@} -output "Hello, world!\n''
+
+test regexp_capture @{
+  Capture the output, which can be Monday...
+  Sunday, we want to match those values.
+@} -body @{
+  showWeekDay
+@} -match regexp -output "Today is (Mon|Tue|Wedne|Thurs|Fri|Satur|Sun)day"
+
+cleanupTests
+@end example
+
+Ce test permettra de savoir si la sortie correspond à l’un des jours de
+la semaine.
+
+
+
+@node Tester les conditions d’erreur
+@chapter Tester les conditions d’erreur.
+
+Le traitement des erreurs qui peuvent venir des procédures est immédiat
+avec tcltest.
+
+Voici un fichier test qui intercepte les erreurs et les traite.
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+package require tcltest
+namespace import ::tcltest::*
+
+test divide_by_zero @{@} -body @{
+  expr @{5 / 0@}
+@} -returnCodes @{error@} -result "divide by zero"
+
+test open_non_existing_file @{@} -body @{
+  open zzzz r
+@} -returnCodes @{error@} -result @{couldn't open "zzzz'': no such file or directory@}
+
+cleanupTests
+@end example
+
+Ce fichier peut être amélioré si on ne connait pas la sortie exacte
+
+@example
+#-*- mode: Tcl; fill-column: 80; -*-
+package require tcltest
+namespace import ::tcltest::*
+
+test divide_by_zero @{@} -body @{
+  expr @{5 / 0@}
+@} -returnCodes @{error@} -match regexp -result @{[Dd]ivide by zero@}
+
+test open_non_existing_file @{@} -body @{
+  open zzzz r
+@} -returnCodes @{error@} -match glob -result @{*no such file or directory@}
+
+cleanupTests
+@end example
+
+
+
+@node Vue générale des commandes de l’extension
+@chapter Vue générale des commandes de l’extension
+@c COMMANDS
+
+@findex [tcltest] test name description ?-option value ...?
+@findex [tcltest] test name description ?constraints? body result
+
+@findex [tcltest] loadTestedCommands
+@findex [tcltest] makeDirectory name ?directory?
+@findex [tcltest] removeDirectory name ?directory?
+@findex [tcltest] makeFile contents name ?directory?
+@findex [tcltest] removeFile name ?directory?
+@findex [tcltest] viewFile name ?directory?
+@findex [tcltest] cleanupTests ?runningMultipleTests?
+@findex [tcltest] runAllTests
+
+@findex [tcltest] configure
+@findex [tcltest] configure -option
+@findex [tcltest] configure -option value ?-option value ...?
+@findex [tcltest] customMatch mode command
+@findex [tcltest] testConstraint constraint ?value?
+@findex [tcltest] outputChannel ?channelID?
+@findex [tcltest] errorChannel ?channelID?
+@findex [tcltest] interpreter ?interp?
+
+@findex [tcltest] debug ?level?
+@findex [tcltest] errorFile ?filename?
+@findex [tcltest] limitConstraints ?boolean?
+@findex [tcltest] loadFile ?filename?
+@findex [tcltest] loadScript ?script?
+@findex [tcltest] match ?patternList?
+@findex [tcltest] matchDirectories ?patternList?
+@findex [tcltest] matchFiles ?patternList?
+@findex [tcltest] outputFile ?filename?
+@findex [tcltest] preserveCore ?level?
+@findex [tcltest] singleProcess ?boolean?
+@findex [tcltest] skip ?patternList?
+@findex [tcltest] skipDirectories ?patternList?
+@findex [tcltest] skipFiles ?patternList?
+@findex [tcltest] temporaryDirectory ?directory?
+@findex [tcltest] testsDirectory ?directory?
+@findex [tcltest] verbose ?level?
+
+@findex [tcltest] test name description optionList
+@findex [tcltest] bytestring string
+@findex [tcltest] normalizeMsg msg
+@findex [tcltest] normalizePath pathVar
+@findex [tcltest] workingDirectory ?dir?
+
+Nous abordons maintenant une présentation exhaustives des commandes
+l’extension tcltest.
+
+Toutes les commandes de l’extension tcltest sont définies dans l’espace
+de noms @code{::tcltest} et exportées depuis là. Dans les sections
+suivantes, nous décrirons les commandes sans leur préfixe rappelant
+l’espace de noms.
+
+La commande centrale de tcltest est la commande @code{test} qui définie
+et exécute un test. Ceci implique d’évaluer un script Tcl et de comparer
+son résultat avec le résultat attendu, avec les configurations et les
+mesures de contrôles offertes par un grand nombre d’options. D’autres
+commandes de cette extension gouvernent la configuration de l’extension
+et des collections rassemblant un grand nombre de tests dans une suite
+d’essais.
+
+@table @code 
+@item test name description ?-option value ...?
+Définit et exécute éventuellement un test ayant pour nom @code{name} et
+pour description @code{description}. Le nom et la description d’un test
+sont utilisés pour les messages renvoyés pendant l’essai, comme
+configuré par les options de tcltest. Les arguments optionnels restants
+définissent le test, incluant le script à exécuter, les conditions pour
+le faire, le résultat attendu et les moyens par lesquels le résultat
+obtenu et le résultat attendu seront comparés. Une description complète
+des options possibles pour définir le test seront détaillées plus loin
+(@ref{La commande 'test'}). La commande @code{test} retourne une chaîne
+vide.
+
+@item test name description ?constraints? body result
+Cette forme de test est fournie pour supporter les suites de tests
+écrites pour la version 1 de l’extension tcltest et fournit aussi un
+interface plus simple pour les essais d’usage courant. C’est la même
+chose que la commande usuelle :
+@example
+test $name $description \
+   -constraints $constraints\
+   -body $body \
+   -result $result
+@end example
+Toutes les autres options d’essai prennent alors leur valeurs par
+défaut. Quand l’argument @code{constraints} est omis, cette forme de
+test reste distinguable de la première car toutes les options
+débutent avec @code{-}.
+
+@item loadTestedCommands
+Èvalue le script spécifié par une instruction @code{configure -load} ou
+@code{configure -loadfile} dans le contexte du processus appelant.
+Retourne le résultat de l’évaluation de ce script, incluant toute erreur
+pouvant avoir été levée par le script. Utilisez cette commande et ses
+options de configurations pour fournir les commandes à tester à
+l’interpréteur exécutant la suite de test.
+
+@item makeFile contents name ?directory?
+Crée un fichier @code{name} dans le répertoire @code{directory} et y
+écrit le contenu @code{content} en utilisant l’encodage du système. Si
+le contenu ne termine pas par une nouvelle ligne, une nouvelle ligne
+sera ajoutée de telle façon que le fichier termine bien toujours par une
+nouvelle ligne. Comme c’est l’encodage du système qui est utilisé, cette
+commande ne convient que pour créer des fichiers texte. Le fichier sera
+enlevé à la prochaine évaluation de la commande @code{cleanupTests},
+sauf s’il est enlevé avant par la commande @code{removeFile}. La valeur
+par défaut de l’argument @code{directory} est le répertoire configuré
+par la commande @code{configure -tmpdir}.  Cette commande retourne la
+chemin complet du fichier créé. Utilisez cette commande pour créer
+n’importe quel fichier texte requis par un test et donnez lui le contenu
+requis pour ce test.
+
+@item removeFile name ?directory?
+Force l’effacement du fichier référencé par l’argument @code{name},
+relativement au répertoire @code{directory}. La valeur par défaut de
+l’argument @code{directory} est le répertoire configuré par la commande
+@code{configure -tmpdir}. Cette commande retourne une chaîne
+vide. Utilisez cette commande pour effacer un fichier créé par la
+commande @code{makeFile}.
+
+@item makeDirectory name ?directory?
+Créé un répertoire @code{name} relativement au chemin
+@code{directory}. Ce répertoire sera enlevé à la prochaine évaluation de
+la commande @code{cleanupTests}, à moins qu’il ait été effacé avant par
+la commande @code{removeDirectory}. La valeur par défaut de l’argument
+@code{directory} est le répertoire configuré par la commande
+@code{configure -tmpdir}. Retourne la chemin complet à ce répertoire qui
+vient d’être créé. Utilisez cette commande pour créer un répertoire qui
+peut être requis par les tests.
+
+@item removeDirectory name ?directory?
+Force l’effacement du répertoire @code{name}. Ce répertoire doit être
+relatif au chemin donné par @code{directory}. La valeur par défaut de
+l’argument @code{directory} est le répertoire configuré par la commande
+@code{configure -tmpdir}. Retourne une chaîne vide. Utilisez cette
+commande pour effacer tout répertoire créé par la commande
+@code{makeDirectory}.
+
+@item viewFile file ?directory?
+Retroune le contenu du fichier fichier @code{file}, mis à part le
+caractère final de nouvelle ligne, juste comme le ferait @code{read
+-nonewline}. Le nom de ce fichier doit être relatif au chemin
+@code{directory}. La valeur par défaut de l’argument @code{directory}
+est le répertoire configuré par la commande @code{configure
+-tmpdir}. Utilisez cette commande comme un moyen pratique pour
+transférer le contenu d’un fichier généré par le test en un résultat qui
+pourra être comparé avec le résultat attendu. Le contenu du fichier est
+lu en utilisant l’encodage du système, donc son utilité est limitée au
+fichier texte.
+
+@item cleanupTests
+Cette commande est prévue pour nettoyer et donner un bilan après
+l’exécution de plusieurs tests. Typiquement appelé une fois par fichier
+testé, en final après que tous les tests aient été effectués. Pour une
+meilleure efficacité, assurez-vous que la commande @code{cleanupTests}
+soit évalué même si une erreur intervient avant dans l’évaluation du
+fichier de test. 
+
+Imprime des statistiques sur les essais effectués et efface les fichiers
+et répertoires créés par @code{makeDirectory} et @code{makeFile} depuis
+la dernière exécution de @code{cleanupTests} et dans le répertoire obtenu
+par @code{configure -tmpdir}, mais pas les fichiers créés par
+@code{makeFile} ou @code{makeDirectory} qui sont renvoyés sur
+@code{outputChannel}. Cette commandes restaure l’environnement original
+du shell, comme décrit le vecteur global @code{env}. Retourne une chaîne
+vide.
+
+@item runAllTests
+Ceci est la commande principale prévue pour exécuter la suite de tests
+entière, en couvrant les fichiers et répertoires comme définis par les
+options configurables de tcltest. Une description plus complète est
+donnée plus bas (@ref{Exécuter tous les tests}).
+@end table 
+
+
+@node Les commandes de configuration
+@section Les commandes de configuration
+
+@table @code
+@item configure
+Retourne la liste des options configurables supportées par tcltest. La
+liste complète est donnée plus loin (@ref{Les options configurables}).
+
+@item configure option
+Retourne la valeur courante de l’option @code{option} et retourne une
+erreur si cette option n’existe pas.
+
+@item configure option value ?-option value ...?
+Règle la valeur de chaque option configurable @code{option} avec les
+valeurs données dans l’ordre. Retourne une erreur si une option n’est
+pas supportée ou l’une des valeurs est incorrecte. Quand une erreur est
+levée, la configuration est interrompue et les allocations suivantes ne sont
+pas exécutées.
+
+Si la variable @code{::env(TCLTEST_OPTIONS)} existe quand l’extension
+tcktest est chargée (par @code{package require tcltest}), alors sa
+valeur est prise comme une liste d’arguments à passer à
+@code{configure}.  Ceci permet de régler par l’environnement les valeurs
+par défaut.
+
+
+@item customMatch mode script
+Enregistre @code{mode} comme une nouvelle valeur possible pour l’option
+@code{-match} de la commande @code{test} (@ref{La commande
+'test'}). Quand l’option @code{-match} est passée à la commande
+@code{test}, le script @code{script} sera utilisé pour comparer le
+résultat obtenu avec le résultat attendu. Pour effectuer la
+correspondance, le script est complété par deux mots additionnels, le
+résultat obtenu et le résultat attendu et le script ainsi complété est
+évalué dans l’espace global. Le @code{script} est sensé retourner une
+valeur booléenne indiquant si les deux résultats correspondent. Les
+modes de correspondance pré-inclus sont @code{exact}, @code{blob} et
+@code{regexp}.
+
+@item testConstraint constraint ?boolean?
+Règle ou retourne la valeur booléenne associée à la contrainte
+@code{constraint} (@ref{Les contraintes de test}).
+
+
+@item interpreter ?executableName?
+Règle ou retourne le nom de l’executable à exécuter par
+@code{runAllTests} sur chaque fichier de test quand le résultat de
+@code{configure -singleproc} est faux. La valeur par défaut pour
+l’interpréteur est la nom du programme en cours d’exécution comme
+retourné par la commande @code{info nameofexecutable}.
+
+@item outputChannel ?channelID?
+Règle ou retourne l’identifiant du canal de sortie. La valeur par défaut est
+@code{stdout}. Tout test qui renvoit des retour de test devraient
+renvoyer leur sortie vers ce canal de sortie plutôt que d’utiliser la
+canal @code{stdout} par défaut.
+
+@item errorChannel ?channelID?
+Règle ou retourne l’identifiant du canal d’erreur. La valeur par défaut
+est @code{stderr}. Tout test qui renvoie un message d’erreur devrait
+utiliser ce canal plutôt qu’utiliser le canal @code{stderr} par défaut.
+@end table
+
+
+@node Raccourcis des commandes configuration
+@section Raccourcis des commandes configuration
+@c SHORTCUT CONFIGURATION COMMANDS
+
+Voici la list des raccourcis de commandes de configuration et leur
+équivalents.
+
+@multitable @columnfractions .45 .55 
+@item @code{debug ?level?}
+@tab @code{configure -debug ?level?}
+
+@item @code{errorFile ?filename?}
+@tab @code{configure -errfile ?filename?}
+
+@item @code{limitConstraints ?boolean?}
+@tab @code{configure -limitconstraints ?boolean?}
+
+@item @code{loadFile ?filename?}
+@tab @code{configure -loadfile ?filename?}
+
+@item @code{loadScript ?script?}
+@tab @code{configure -load ?script?}
+
+@item @code{match ?patternList?}
+@tab @code{configure -match ?patternList?}
+
+@item @code{matchDirectories ?patternList?}
+@tab @code{configure -relateddir ?patternList?}
+
+@item @code{matchFiles ?patternList?}
+@tab @code{configure -file ?patternList?}
+
+@item @code{outputFile ?filename?}
+@tab @code{configure -outfile ?filename?}
+
+@item @code{preserveCore ?level?}
+@tab @code{configure -preservecore ?level?}
+
+@item @code{singleProcess ?boolean?}
+@tab @code{configure -singleproc ?boolean?}
+
+@item @code{skip ?patternList?}
+@tab @code{configure -skip ?patternList?}
+
+@item @code{skipDirectories ?patternList?}
+@tab @code{configure -asidefromdir ?patternList?}
+
+@item @code{skipFiles ?patternList?}
+@tab @code{configure -notfile ?patternList?}
+
+@item @code{temporaryDirectory ?directory?}
+@tab @code{configure -tmpdir ?directory?}
+
+@item @code{testsDirectory ?directory?}
+@tab @code{configure -testdir ?directory?}
+
+@item @code{verbose ?level?}
+@tab @code{configure -verbose ?level?}
+@end multitable
+
+
+@node Les autres commandes
+@section Les autres commandes
+@c OTHER COMMANDS
+
+Les commandes restantes fournies par tcltest ont de meilleurs
+alternatives dans les autres fonctions de tcltest ou dans Tcl
+lui-même. Elles sont retenues pour supporter les suites de tests déjà
+existantes et devraient être évité dans le nouveau code.
+
+@c >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+@table @code
+@item test name description optionList
+Cette forme de test avait été fournie pour passez beaucoup d’options sur
+plusieurs lignes et pour testes en un seul argument entouré
+d’accolades, plutôt que de devoir échapper avec une barre oblique les
+carctère de nouvelle ligne entre les arguments à envoyer à
+@code{test}. Il est attendu que l’argument @code{optionList} soit une
+liste avec un nombre impair d’élément représentant les options les
+valeurs d’argument à passer au test. Cependant, ces valeurs ne sont pas
+passées directement comme les formes alternatives de @code{switch}. À la
+place, cette forme fait une tentive malheureuse de passer outre les
+règles de substitution de Tcl en faisant des substitutions sur certains
+éléments de la liste dans une tentative d’implémenter une interprétation
+du « faites ce que je veux » d’un « block » enchassé entre des
+accolades. Le résultat est presque impossible à documenter clairement et
+pour cette raison, cette forme n’est pas recommandée. Voyez les exemples
+de création de suite de tests
+(@ref{Exemples avancés de suites de tests}) plus loin pour voir que
+cette forme n’est pas nécessaire pour éviter les barres obliques en fin
+de lignes. Si vous insistez pour utiliser cette forme, examiné le code
+source de tcltest, si vous voulez comprendre les détails ou enfermé
+juste le troisième et dernier argument entre accolades et espérez que
+cela marchera au mieux.
+
+@item workingDirectory ?directoryName?
+Définit et retourne le répertoire en cours quand la suite de tests est
+effectuée. La valeur par défaut pour @code{workingDirectory} est le
+répertoire dans lequel la suite de tests a été lancée. En réalité, les
+commandes Tcl @code{cd} et @code{pwd} suffisent et peuvent donc
+remplacer cette commande.
+
+
+@item normalizeMsg msg
+Retourne le message @code{msg} en enlevant les nouvelles lignes
+supplémentaires, mais la notion de « supplémentaire » est plutôt
+imprécise. Tcl permets beaucoup de manière de faire des subsitutions de
+chaînes comme vous le voulez et la commande @code{customMatch} permet de
+construire des règles de correspondance flexibles avec le résultat
+attendu.
+
+@item normalizePath pathVar
+Résout les liens symboliques dans un chemin, donc créé un chemin sans
+redirection interne. Il est attendu que @code{pathVar} est un chemin
+donné en absolu. L’argument @code{pathVar} est modifié sur place. Tcl
+propose déjà des commande pour normalisé les noms de fichier qui sont
+suffisantes. 
+
+
+@item bytestring string
+Constuit une chaîne qui consiste en un séquence attendue d’octets en
+opposition à une chaîne formée de caractères UTF-8 formés proprement en
+utilisant les valeurs des caractères fournis. Ceci permet au testeur de
+créer des chaînes dénormalisée ou improprement formées pour passer des
+procédurs C, qui sont supposées accepter des chaînes avec des types NULL
+inclus et confirmer qu’une chaîne resultante a un certain motif
+d’octet. Ceci est exactement équivalent à la commande Tcl
+@code{encoding}. 
+@end table
+
+
+@node La commande 'test'
+@section La commande @code{test}
+@c TESTS
+
+La commande @code{test} est au cœur de l’extension @code{tcltest}. Sa
+fonction essentielle est d’évaluer un script Tcl et de comparer son
+résultat avec un résultat attendu. Les options de cette commande
+@code{test} définisse le script à tester, l’environnement dans lequel
+l’évaluer, le résultat attendu et comment comparer le résultat obtenu
+avec le résultat attendu. Certains options de configuration générales
+influencent aussi la façon dont le test opère.
+
+Voici le résumé des options valables :
+
+@example
+test name description
+        ?-constraints keywordList|expression?
+        ?-setup setupScript?
+        ?-body testScript?
+        ?-cleanup cleanupScript?
+        ?-result expectedAnswer?
+        ?-output expectedOutput?
+        ?-errorOutput expectedError?
+        ?-returnCodes codeList?
+        ?-errorCode expectedErrorCode?
+        ?-match mode?
+@end example
+
+Le nom @code{name} peut être n’importe quelle chaîne. Par convention, on
+utilise souvent un nom qui suit le motif suivant :
+
+@example
+target-majorNum.minorNum
+@end example
+
+Pour les tests de boites-blanches (régression), la cible devrait être de
+la fonction C ou de la procédure Tcl devant être testée. Pour les tests
+de boites noires, la cible devrait être le nom de la fonctionalité qui
+est testée. Certaines conventions demandent que les noms des tests de
+boite noires est le suffixe @code{_bb}. Les tests en relation entre eux
+devraient partager le même numéro principal @code{majorNum}. Au fur et à
+mesure que la suite de tests évolue, il est mieux que le même nom de
+test continue de correspondre au même test, de telle manières qu’on
+puisse dire des choses comme que « le test @code{foo-1.3} a passé toutes
+les révisions jusqu’à la numéro 3.4, mais a commencé à défaillir à
+partir de la révision 3.5 ». 
+
+Pendant l’évaluation d’un test, son nom sera comparé à la liste des
+chaînes correspondant au motif retourné par la commande
+@code{configure -match} et @code{configure -skip}. Le test sera lancé
+seulement si son nom correspond à l’un des motifs renvoyés par
+@code{configure -match} et à aucun des motifs renvoyé par
+@code{configure -skip}.
+
+La description devrait être une description textuelle courte du test. La
+description est incluse dans la sortie produite par le test, typiquement
+dans les messages d’erreur du test. Une bonne description devrait
+expliquerr brièvement le but du test à l’utilisateur d’une suite
+d’essais. Le nom d’une fonction Tcl ou C en test devrait être incluse
+dans la description de tests de regression. Si un cas de test existe
+pour reproduire une erreur connue, incluer son numéro de référence dans
+la description.
+
+Ensuite viennent les attributs avec leur valeur. Voici leur liste :
+
+@table @code
+@item -constraints keywordList|expression
+L’attribut optionnel @code{-constraints} peut être une liste d’un ou
+plusieurs mots clés ou une expression. Si la valeur de l’attribut
+@code{-constraints} et une liste de mots clés, chacun de ces mots clés
+devrait être le nom d’une contrainte définie par l’appel de la fonction
+@code{testConstraint}. Si l’une des contraintes listées est fausse ou
+n’existe pas, le test est sauté sans être exécuté. Si la valeur de
+@code{-constraints} est une expression, cette expression est évaluée.
+Si l’expression est évaluée à la valeur vraie, le test est effectué et
+non dans le cas contraire. Notez que la forme de l’expression dans
+@code{-constraints} peut interférer avec l’exécuter de
+@code{configure -constraints} et @code{configure -limitconstraints} et
+que ce n’est pas recommandé. Un contrainte appropriée devrait être
+ajoutée à n’importe quel teste qui ne devrait pas être toujours
+exécuté. Ce qui veut dire que l’évaluation conditionnelle d’un test
+devrait être accomplie par l’option @code{-constraints} et non pas par
+une évaluation conditionnelle du test. De cette façon, le même nombre de
+tests sont toujours reportés par la suite de tests, bien que le nombre
+de tests passés puisse changer selon l’environnement de test. La valeur
+par défaut est la liste vide. Voir plus bas
+(@ref{Les contraintes de test}) pour une liste des contraintes
+pré-incluses et des explications sur comment ajouter vos propres contraintes.
+
+
+@item -setup script
+L’attribut optionnel @code{-setup} indique un script, qui sera exécuté
+avant le script contenu dans l’attribut @code{-body}. Si l’évaluation de
+ce script lève une erreur, le test échouera. La valeur par défaut est un
+script vide.
+
+@item -body script
+L’attribut @code{-body} donne le script à effectuer pour faire le test,
+qui doit retourner un résultat dont la correction peut être vérifiée. Si
+l’évaluation du script lève une erreur, le test échouera (sauf si
+l’option @code{-returnCodes} est utilisée pour statuer qu’une erreur
+était attendue). La valeur par défaut est un script vide.
+
+@item -cleanup script
+L’attribut optionnel @code{-cleanup} donne un script qui sera exécuté
+après que le script donné par l’attribut @code{-body} le soit. Si
+l’évaluation du script lève une erreur, le test échouera. La valeur par
+défaut est un script vide.
+
+@item -match mode
+L’attribut @code{-match} détermine comment une réponse sera comparée à
+celle attendue par l’attribut @code{-result}, @code{-output}, et
+@code{-errorOutput}. Les commandes de comparaison valables sont
+@code{regexp}, @code{glob}, @code{exact}, et n’importe quelle valeur
+enregistrée par un appel préliminaire à @code{customMatch}. La valeur
+par défaut est @code{exact}.
+
+@item -result expectedValue
+L’attribut @code{-result} fournit le résultat attendu
+@code{expectedValue} qui sera comparé à la valeur de retour du
+script. La valeur par défaut est une chaîne vide.
+
+@item -output expectedValue
+L’attribut @code{-output} fournit la sortie @code{expectedValue} qui
+sera comparée à n’importe quelle sortie venant du canal @code{stdout} ou
+@code{outputChannel} pendant l’évaluation du ou des scripts. Notez que
+seulement les sorties rendues par la commande globale @code{puts} sont
+utilisées pour la comparaison. Si @code{-output} n’est pas spécifiée,
+la sortie envoyée à @code{stdout} et @code{outputChannel} n’est pas
+utilisée dans la comparaison.
+
+@item -errorOutput expectedValue
+L’attribut @code{-errorOutput} fournit la valeur @code{expectedValue} à
+laquelle sera comparée n’importe quelle sortie envoyée à @code{stderr}
+ou @code{errorChannel} durant l’exécution du ou des script(s). Notez que
+seules les sorties utilisant la commande globale @code{puts} seront
+utilisées dans la comparaison. Si l’attribut @code{-errorOutput} n’est
+pas spécifié, la sortie envoyée à @code{stderr} ou au canal
+@code{errorChannel} ne sera pas utilisée dans la comparaison.
+
+@item -returnCodes expectedCodeList
+L’attribut optionnel @code{-returnCodes} fournit
+@code{expectedCodeList}, une liste de codes de retour qui peuvent être
+acceptés par l’évaluation du script @code{-body}. Si l’évaluation
+retourne un code non prévu dans la liste @code{expectedCodeList}, le
+test échouera. Tous les codes de retour reconnus, que ce soit dans leur
+forme numérique ou symbolique, incluant les codes de retours étendus,
+sont des tous des élements acceptable pour @code{expectedCodeList}. La
+valeur par défaut est @code{ok return}.
+
+@item -errorCode expectedErrorCode
+L’attribut @code{-errorCode} fournit @code{expectedErrorCode}, un motif
+global, qui devrait correspondre le code d’erreur reporté par
+l’évaluation du script @code{-body}. Si l’évaluation du script
+@code{-body} retourne un code ne correspondant pas à
+@code{expectedErrorCode}, le test échouera. La valeur par défaut est
+@code{*}. Si @code{-returnCodes} n’inclue pas d’erreur, il est réglé à
+@code{error}.
+@end table
+
+Pour passer, un test doit évaluer avec succès les scripts contenus dans
+les atributs @code{-setup}, @code{-body} et @code{-cleanup}. Le code de
+retour du script @code{-body} et son résultat doivent correspondre aux
+valeurs attendues et si spécifiée, les données de sortie et d’erreur
+doivent correspondre aux résultats attendus par les valeurs de
+@code{-output} et @code{-errorOutput}. Si l’une de ces conditions n’est
+pas réalisées, alors le test échoue. Notez que tous les scripts sont
+évalués dans le contexte du processus appelant le test.
+
+Tant que la commande @code{test} est appelée avec une syntaxe valable et
+des valeurs légales pour tous les attributs, elle ne lèvera aucune
+erreur. À la place, les tests de défaillance sont reportés comme des
+sorties et écrits sur le canal @code{outputChannel}. Dans une execution
+par défaut, un test positif ne produit aucune sortie. Les messages de
+sortie produis par la commande @code{test} sont contrôlés par l’option
+@code{configure -verbose} comme décrit plus bas
+(@ref{Les options configurables}). Toute sortie produite par les scripts
+de test eux mêmes devraient être produits en utilisant les canaux
+@code{outputChannel} ou @code{errorChannel}, pour que les utilisateurs
+de la suite de tests puissent aisément récupérer la sortie avec les options
+@code{configure -outfile} et @code{configure -errfile} et de tel façon
+que les attributs @code{-output} et @code{-errorOutput}  fonctionnenet
+correctement.
+
+Si on veut tester une levée d’erreur faite intentionnellement avec la
+commande @code{error}, il faut utiliser l’option
+@code{-returnCodes error}
+pour indiquer qu’on s’attend à une erreur. Le message de l’erreur
+est alors retrourné au résultat donné par l’option @code{-result}.
+
+@example
+proc squareroot x @{
+  if @{$x < 0@} @{
+    error "$x est négatif!"
+  @} @{
+    return [expr sqrt($x)]
+  @}
+@}
+
+test sqrt @{test la procédure@}\
+  -setup @{set x -2@}\
+  -body @{squareroot $x@}\
+  -returnCodes error \
+  -result "$x est négatif!"
+@end example
+
+
+
+@node Les contraintes de test
+@section Les contraintes de test
+@c TEST CONSTRAINTS
+
+Les contraintes sont utilisées pour déterminer si un test doit être
+sauté ou non. Chaque contrainte a un nom, qui peut être n’importe quelle
+chaîne, et une valeur booléenne. Chaque test a une valeur
+@code{-constraints} qui est une liste des noms de contraintes. Il y a
+deux modes de contrôle de contraintes. La plupart du temps, le mode par
+défaut est utilisé, indiqué en réglant
+@code{configure -limitconstraints} à faux. Le test fonctionnera
+seulement si toute les contraintes de la liste sont à la valeur
+vraie. Donc l’option @code{-constraints} de la commande @code{test} est
+un moyen symbolique et pratique de définir n’importe quelle condition
+requise pour que le test soit possible ou ait une signification. Par
+exemple, un test avec @code{-constraints unix} ne sera effectué que si
+la contrainte @code{unix} est vraie, ce qui veut dire que le test est
+effectué sur une plateforme Unix.
+
+Chaque test devrait inclure toutes les options @code{-constraints}
+requises pour qu’il soit exécuté quand c’est approprié. Plusieurs
+contraintes sont pre-définies dans l’extension tcltest, comme listé plus
+bas. L’enregistrement de contraintes définies par l’utilisateur se fait
+avec la commande @code{testConstraint}. Les contraintes définies par
+l’utilisateur peuvent apparare dans un fichier de test ou dans un script
+spécifié par les options @code{configure -load} ou
+@code{configure -loadfile}.
+
+
+Voici la liste des contraintes pré-définies dans l’extension tcltest :
+
+@multitable @columnfractions .3 .7
+@item singleTestInterp
+@tab Ce test ne peut être exécuté que si tous les fichiers tests ont
+leur source dans un interpréteur unique.
+
+@item unix
+@tab Ce test ne peut être exécuté que sous plateforme Unix.
+
+@item win
+@tab Ce test ne peut être exécuté que sous plateforme Windows.
+
+@item nt
+@tab Ce test ne peut être exécuté que sous plateforme nt.
+
+@item mac
+@tab Ce test ne peut être exécuté que sous plateforme Mac.
+
+@item unixOrWin
+@tab Ce test ne peut être exécuté que sous plateforme Unix ou Windows.
+
+@item macOrWin
+@tab Ce test ne peut être exécuté que sous plateforme Mac ou Windows.
+
+@item macOrUnix
+@tab Ce test ne peut être exécuté que sous plateforme Mac ou Unix.
+
+@item tempNotWin
+@tab Ce test ne peut pas être exécuté sous Windows. Cet indicateur est
+utilisé pour désactiver temporairement un test.
+
+@item tempNotMac
+@tab Ce test ne peut pas être exécuté sous Mac. Cet indicateur est
+utilisé pour désactiver temporairement un test.
+
+@item unixCrash
+@tab Ce test se plante s’il est exécuté sous Unix. Cet indicateur est
+utilisé pour désactiver temporairement un test.
+
+@item winCrash
+@tab Ce test se plante s’il est exécuté sous Windows. Cet indicateur est
+utilisé pour désactiver temporairement un test.
+
+@item macCrash
+@tab Ce test se plante s’il est exécuté sous Mac. Cet indicateur est
+utilisé pour désactiver temporairement un test.
+
+@item emptyTest
+@tab Ce test est vide et ne vaut pas le coup d’être exécuté, mais il
+conserve la place pour y écrire un test dans le future. Cette contrainte
+a la valeur faux pour faire que ce test soit sauté sauf si
+l’utilisateur le spécifie autrement.
+
+@item knownBug
+@tab Ce test est connu pour échouer et l’erreur n’est pas encore
+corrigée. Cette contrainte a la valeur faux pour que ce test soit passé
+sauf si l’utilisateur le spécifie autrement. 
+
+@item nonPortable
+@tab Ce test ne peut être executé que sur des environnements de
+développement connus. Certains tests sont fondamentalement non
+portables, car ils dépendent de détails comme la longueur des mots, le
+configuration du système de fichiers, la gestionnaire de fenêtres, etc.
+Cette contrainte a la valeur faux pour que le test soit sauté sauf si
+l’utilisateur le spécifie autrement.
+
+@item userInteraction
+@tab Ce test requiert une interaction avec l’utilisateur. Cette
+contrainte a la valeur faux pour que le test soit sauté sauf si
+l’utilisateur le spécifie autrement.
+
+@item minteractive
+@tab Ce test ne peut être exécuté que si l’interpréteur est en mode
+interactif (quand la variable globale @code{tcl_interactive} est réglée
+sur @code{1}).
+
+@item nonBlockFiles
+@tab Ce test ne peut être exécuté que si la plateforme supporte de
+régler les fichiers dans un mode non bloquant.
+
+@item asyncPipeClose
+@tab Ce test ne peut être exécuté que si la plateforme supporte les
+commandas @code{async flush} et @code{async close} sur un tuyau.
+
+@item unixExecs
+@tab Ce test ne peut être exécuté que si cette machine a des commandes
+disponibles de style Unix : @code{cat}, @code{echo}, @code{sh},
+@code{wc}, @code{rm}, @code{sleep}, @code{fgrep}, @code{ps},
+@code{chmod} et @code{mkdir}.
+
+
+@item hasIsoLocale
+@tab Ce test ne peut être exécuté que s’il peut se mettre sur une
+localisation ISO.
+
+@item root
+@tab Ce test ne peut être exécuté que si l’utilisateur Unix est root.
+
+@item notRoot
+@tab Ce test ne peut être exécuté que si l’utilisateur Unix n’est pas root.
+
+@item eformat
+@tab Ce test ne peut être exécuté que si l’application a une version qui
+fonctionne de @code{sprintf} respectant le format @code{e} pour les
+nombres flottants.
+
+@item stdio
+@tab Ce test ne peut être exécuté que si l’interpréteur peut être ouvert
+comme un tuyau.
+
+@end multitable
+
+Un mode alternatif de contrôle de contraintes est activé en réglant
+@code{configure -limitconstraints} à vraie. Avec ce réglage de configuration,
+toutes les contraintes existantes autres que celles qui sont dans la
+liste des contraintes retournées par @code{configure -constraints} sont
+aussi mises à faux. Quand la valeur de @code{configure -constraints} est
+réglée, toutes ces contraintes sont mises à vraie. L’effet est que si
+les deux option @code{configure -constraints} et
+@code{configure -limitconstraints} sont utilisées, seules les tests
+incluant seulement les contraintes venant de la liste de
+@code{configure -constraints} seront effectués ; tous les autres seront
+sautés. Par exmple, on pourrait régler une configuration avec :
+
+@example
+configure -constraints knownBug \
+          -limitconstraints true \
+          -verbose pass
+@end example
+
+pour effectuer exactement ces tests qui donnent certaines erreur connues
+pour découvrir si l’un d’entre eux passe, indiquant que le problème a
+été résolu.
+
+
+@node Exécuter tous les tests
+@section Exécuter tous les tests
+@c RUNNING ALL TESTS
+
+La commande unique @code{runAllTests} est évaluée pour exécuter une
+suite entière de tests, analysant beaucoup de fichiers et de
+répertoires. Les options de configuration @code{tcltest} contrôle
+précisement l’opératon. La commande @code{runAllTests} commence en
+renvoyant un résumé de ses options de configuration sur la conal de
+sortie @code{outputChannel}.
+
+Les fichiers des test à évaluer sont recherchés dans le répertoire donné
+par la commande @code{configure -testdir}. La liste des fichiers dans ce
+répertoire, qui correspondent à l’un des motifs donnés par la commande
+@code{configure -file} et à aucun des motifs donné par la commande
+@code{configure -notfile} est générée et ordonnée. Ensuite chaque
+fichier sera évalué, chacun à son tour. Si la commande @code{configure
+-singleproc} renvoie vraie, alors chaque fichier sera chargé dans le
+contexte du processus appelant. Si la commande renvoie faux, alors un
+copie de l’interpréteur exécutera chacun des fichiers de
+test. L’opération avec plusieurs processus est utile quand les tests
+peuvent générer des erreurs si sévères qu’elle arrêteraient un
+processus. Ce type d’erreur peut alors terminer un processus enfant
+évaluée sur un fichier, mais le processus principal peut continuer avec
+le reste de la série de tests. Dans les opérations à plusieurs
+processus, la configuration du processus principal de @code{tcltest} est
+passé aux processus enfants comme des arguments en ligne de commande, à
+l’exception de @code{configure -outfile}. Le processus principale de la
+commande @code{runAllTests} collecte toutes les sorties des processus
+enfant and collecte toutes leur sorties dans le rapport principal. Tout
+rapport d’une erreur individuel de test, ou tout message demandé par
+l’option @code{configure -verbose} sont passé directement au canal de
+sortie @code{outputChannel} par la processus principal.
+
+Après l’évaluation des tous les fichiers sélectionnés, un résumé des
+résultats sera renvoyé au canal @code{outputChannel}. Le résumé inclut
+le nombre total de tests évalués, en les répartissant entre ceux qui
+sont passés, ceux qui sont sautés et ceux qui ont échoué. Le résumé note
+aussi le nombre de fichiers évalués and le nom de n’importe quel
+fichiers ayant échoué ou ayant renvoyé des erreurs. Une liste des
+contraintes, qui font sauter des tests et le nombre de tests sautés sont
+renvoyés. Des messages sont aussi renvoyés s’il apparait que
+l’évaluation d’un test a laissé beaucoup de fichiers temporaires dans le
+répertoire @code{configure -tmpdir}.
+
+Ayant complété tous les tests selectionnés et fait les rapports,
+@code{runAllTests} va agir récursivement dans les sous-répertoire de
+@code{configure -testdir}. Tous les sous-répertoires qui correspondent à
+l’un des motifs de @code{configure -relateddir} et ne qui ne
+correspondent à aucun motif de @code{configure -asidefromdir} sont
+examiné. Si un fichier @code{all.tcl} est trouvé dans un répertoire de
+ce type, il sera exécuté comme fichier source dans le contexte
+appelant. Que les répertoires examinés contiennent ou non un fichier
+@code{all.tcl}, ses sous-répertoires sont aussi analysé en rapport avec
+les motifs renvoyés par @code{configure -relateddir} et
+@code{configure -asidefromdir}. De cette façon, beaucoyp de répertoires
+dans une arborescence de répertoires peuvent avoir tous leur fichiers de
+test évalués par une commande @code{runAllTests} unique.
+
+
+@node Les options configurables
+@section Les options configurables
+@c CONFIGURABLE OPTIONS
+
+La commande de configuration @code{configure} est utilisée pour régler
+et pour retrouver les options options configurable de tcltest.
+
+Les options valables sont :
+
+@table @code
+@item -singleproc boolean
+Contrôle si la commande @code{runAllTests} développe un processus enfant
+pour chaque fichier de test ou non. Aucun développement si
+@code{boolean} est vrai (@code{t}). La valeur par défaut est faux (@code{f}).
+
+@item -debug level
+Définit le niveau de mise au point désiré. Une valeur entière indique
+combien d’information d’aide à la mise au point doit être envoyé sur la
+sortie @code{stdout}. Notez que les messages de mise au point vont
+toujours sur le canal @code{stdout}, indépendament dal a valeur de
+@code{configure -outfile}. La valeur par défaut est @code{0}.
+
+Les niveaux définis sont :
+
+@multitable @columnfractions .1 .9
+@item 0
+@tab Ne montre aucun information de mise au point.
+
+@item 1
+@tab
+Affiche si un test est sauté parcequ’il ne correspond à aucun tests,
+spécifiés par @code{configure -match} (@code{userSpecifiedNonMatch}) ou
+s’il correspond à l’un des tests spécifiés par @code{configure -skip}
+(@code{userSpecifiedSkip}). Renvoie aussi les avertissements sur un
+manque de nettoyage ou d’équilibre des sorties des fichiers
+d’essai. Renvoie aussi des avertissements pour chaque ré-utilisation des
+noms de test.
+
+@item 2
+@tab
+Renvoie un vecteur d’indicateur analysé par le processus en ligne de
+commande, le contenu du vecteur de variables globales @code{env} et
+toutes les variables définies par l’utilisateur qui existeraient dans
+l’espace de nom courant.
+
+@item 3
+@tab
+Renvoie de l’information qui dit ce que les processus individuels lancés
+dans les test sont en train d’envoyer.
+@end multitable
+
+@item -verbose level
+Règle le type de niveau verbosité des sorties, une liste de zéro ou plus
+d’éléments @code{body}, @code{pass}, @code{skip}, @code{start},
+@code{error}, @code{line}, @code{msec} et @code{usec}. La valeur par
+défaut est @code{body error}.
+
+Les niveaux définis sont :
+@multitable @columnfractions .3 .7
+@item body (b)
+@tab Affiche les corps des tests ayant échoué
+
+@item pass (p)
+@tab Affiche la sortie quand un test passe
+
+@item skip (s)
+@tab Affiche la sortie quand un test est sauté
+
+@item start (t)
+@tab Affiche la sortie dès qu’un test démarre
+
+@item error (e)
+@tab
+Renvoie @code{errorInfo} et @code{errorCode} s’ils existent, quand un
+test retourne un code qui ne correspond pas au code attendu.
+
+@item line (l)
+@tab Informe sur les lignes des fichiers sources qui n’ont pas passés le
+test
+
+@item msec (m)
+@tab Renvoie le temps d’exécution du test en millisecondes
+
+@item usec (u)
+@tab Renvoie le temps d’exécution du test en microsecondes
+@end multitable
+
+Notez que @code{msec} et @code{usec} utilisés par ces niveaux de
+verbosité ne sont donnés que comme des mesures indicatives. Ils
+n’abordent pas la problème de la répétabilité, qui devrait être
+pris en compte dans les tests de performances ou les études de
+comparaison. Pour utiliser ces niveaux de verbosité pour rechercher de
+manière systématique les dégradations de performace, vous devriez plutôt
+considérer de mettre les corps de vos tests à l’intérieur de commande du
+type @code{time}.
+
+Les abbréviations en une seule lettre notée plus haut sont aussi
+reconnue de telle façon que
+@code{configure -verbose pt} est la même chose que
+@code{configure -verbose @{pass start@}}.
+
+@item -preservecore level
+Règle la préservation du cœur niveau par nivau. Ces niveaux déterminent
+comment les vérifications pour les fichiers seront exigeants ou non. La
+valeur par défaut est @code{0}.
+
+Les niveaux définis sont :
+
+@multitable @columnfractions .1 .9
+@item 0
+@tab
+Aucun vérification — ne vérifie pas les fichier cœur à la fin de chaque
+commande de test, mais les vérifie dans @code{runAllTests} après que
+tous les tests aient été evalués.
+
+@item 1
+@tab Vérifie aussi les fichiers cœur à la fin de chaque commande de test..
+
+@item 2
+@tab
+Vérifie les fichiers cœur à chaque moment décrits plus haut, et sauve
+une copie de chaque fichier cœur produit dans @code{configure -tmpdir}.
+@end multitable
+
+@item -limitconstraints boolean
+Active le mode par le lequel les contraintes avec la commande test
+(@ref{La commande 'test'}) sont activée. La valeur par défaut est faux
+(@code{f}). 
+
+@item -constraints list
+Met toutes les contraintes dans la liste @code{list} à vraie. Aussi
+utilisé en combinaison avec @code{configure -limitconstraints} à vrai
+pour contrôler un mode alternatif alternatif comme décrit plus haut
+(@ref{La commande 'test'}). La valeur par défaut est une liste vide.
+
+
+@item -tmpdir directory
+Définit le répertoire temporaire utilisé par les commande
+@code{makeFile}, @code{makeDirectory}, @code{viewFile},
+@code{removeFile}, et @code{removeDirectory} comme répertoire par défaut
+quand les fichiers de tests doivent utiliser des fichiers ou des
+répertoires temporaires. La valeur par défaut est @code{workingDirectory}.
+
+@item -testdir directory
+Définit le répertoire dans lequel la commande @code{runAllTests} recherche
+les fichier des tests et ses sous-répertoires. La valeur par défaut est
+@code{workingDirectory}.
+
+
+@item -file patternList
+Définit la liste des motifs utilisés par @code{runAllTests} pour
+déterminer quel fichiers de tests doivent être évalués. La valeur par
+défaut est @file{*.test}.
+
+@item -notfile patternList
+Définit la liste des motifs utilisés par @code{runAllTests} pour
+déterminer quel fichiers de tests doivent être sautés. La valeur par
+défaut est @file{l.*.test}, de telle façon que s’il y a des fichiers
+vérouillés (ndt. locked) par SCCS, ils soient sautés.
+
+@item -relateddir patternList
+Définit la liste des motifs utilisés par @code{runAllTests} pour
+déterminer quel sous répertoires doivent être examinés pour rechercher
+un fichier @file{all.tcl}. La valeur par défaut est @file{*}.
+
+@item -asidefromdir patternList
+Définit la liste des motifs utilisés par @code{runAllTests} pour
+déterminer quel sous répertoires à sauter pendant la recherche
+du fichier @file{all.tcl}. La valeur par défaut est la liste vide.
+
+@item -match patternList
+Définit la liste des motifs utilisés par @code{test} qui seront utilisés
+pour déterminer si un test doit être exécuté. La valeur par défaut est
+@code{*}. 
+
+@item -skip patternList
+Définit la liste des motifs utilisés par @code{test} qui seront utilisés
+pour déterminer si un test doit être sauté. La valeur par défaut est
+la liste vide. 
+
+@item -load script
+Définit le script à évaluer avec @code{loadTestedCommands}. La valeur
+par défaut est un script vide.
+
+@item -loadfile filename
+Définit le fichier à lire pour y trouver le script à exécuter avec la
+commande @code{loadTestedCommands}. Ceci est une alternative à l’option
+@code{-load}. Ils ne peuvent pas être utilisés en même temps.
+
+@item -outfile filename
+Définit le fichier la sortie sur laquelle toute les sorties produites
+par @code{tcltest} seront écrites. Un fichier nommé @file{filename} sera
+ouvert en écriture et le canal de sortie @code{outputChannel} sera
+branché dessus.
+
+@item -errfile filename
+Définit le fichier la sortie sur laquelle toute les rapports d’erreur de
+@code{tcltest} seront écrits. Un fichier nommé @file{filename} sera
+ouvert en écriture et le canal de rapport d’erreur @code{errorChannel}
+sera branché dessus.
+@end table
+
+
+
+@node Exemples avancés de suites de tests
+@chapter Exemples avancés de suites de tests
+@c CREATING TEST SUITES WITH TCLTEST
+
+L’élément fondamental d’une suite de tests est la commande individuelle
+@code{test}. Nous commençons par plusieurs exemples.
+
+Voici le test d’un script qui se termine normalement.
+
+@example
+test example-1.0 @{normal return@} @{
+    format %s value
+@} value
+@end example
+
+Voici le test d’un script qui requiert d’installer un contexte puis de
+l’enlever après exécution. Notez que les accolades et le style
+d’indentation qui évitent le besoin d’utiliser des symboles de
+continuation de lignes.
+
+@example
+test example-1.1 @{test file existence@} -setup @{
+    set file [makeFile @{@} test]
+@} -body @{
+    file exists $file
+@} -cleanup @{
+    removeFile test
+@} -result 1
+@end example
+
+Teste un script qui lève une erreur.
+
+@example
+test example-1.2 @{error return@} -body @{
+    error message
+@} -returnCodes error -result message
+@end example
+
+Teste avec une contrainte.
+
+@example
+test example-1.3 @{user owns created files@} -constraints @{
+    unix
+@} -setup @{
+    set file [makeFile @{@} test]
+@} -body @{
+    file attributes $file -owner
+@} -cleanup @{
+    removeFile test
+@} -result $::tcl_platform(user)
+@end example
+
+Au niveau d’organisation supérieur, plusieurs commandes de tests sont
+regroupées ensemble en un seul fichier. Les fichiers de test devraient
+avoir des noms avec l’extension @file{.test}, car c’est le motif par
+défaut utilisé par @code{runAllTests} pour trouver des fichiers. C’est
+une bonne règle approximative d’avoir un fichier de test pour chaque
+fichier source de votre projet. C’est une bonne pratique d’éditer le
+fichier de test et le fichier de code source ensemble, en gardant les
+tests synchronisés avec les changements de code.
+
+La plus grande partie du fichier de test devrait être les commandes
+@code{test}. Utilisez les contraintes pour sauter les tests plutôt
+qu’une évaluation conditionnelle de test. 
+
+Le système recommendé pour écrire des tests conditionnels utilise des
+contraintes:
+
+@example
+testConstraint X [expr $myRequirement]
+test goodConditionalTest @{@} X @{
+    # body
+@} result
+@end example
+
+Les systèmes non recommandé est d’écrire des tests conditionnels:
+
+@example
+if $myRequirement @{
+    test badConditionalTest @{@} @{
+        #body
+    @} result
+@}
+@end example
+
+
+Utilisez les options @code{-setup} et @code{-cleanup} pour établir et
+enlever toutes les exigences de contexte du corps du test. Ne faires pas
+dépendre les tests de test précédant dans le fichier. Ces tests
+précédants pourraient être sautés. Si plusieurs tests consécutifs
+requièrent le même contexte, les scripts d’initialisation (@code{setup})
+et de finalisation (@code{cleanup}) peuvent être stockés dans des
+variables pour les passer à chaque options @code{-setup} et
+@code{-cleanup} des tests. C’est une meilleure solution que d’effectuer
+une initialisation en dehors des commandes de tests, car
+l’initialisation ne sera effectuée que si nécessaire et une erreur
+durant l’initialisation sera rapportée et n’entrainera pas l’arrêt du
+fichier de test. 
+
+Un fichier de test devrait pouvoir être combiné avec d’autres fichiers
+de test sans interférer avec eux, même quand la commande
+@code{configure -singleproc 1} fait que tous les fichiers sont évalués
+dans un même interpréteur commun. Une façon simple d’arriver à ceci est
+d’avoir défini les commandes et les variable de vos tests dans un espace
+de noms qui est effacé quand l’évaluation du test est terminée. Un bon
+espace de nom à utiliser est un espace de noms de test enfant de
+l’espace de noms du module que vous testez.
+
+Un fichier d’essai devrait aussi pouvoir être évalué directement comme
+un script, sans dépendre d’être appelé par un par un @code{runAllTests}
+principal. Ceci veut dire que chaque fichier de test devrait traiter les
+arguments en ligne de commande pour donner au testeur toutes les
+options de configurations qu’offre tcltest. 
+
+Après tous les tests d’un fichier de test, la commande
+@code{cleanupTests} devrait être appelée.
+
+Voici l’esquisse d’un exemple de fichier illustrant ces points :
+
+@example
+package require tcltest 2.5
+eval ::tcltest::configure $argv
+
+package require example
+namespace eval ::example::test @{
+  namespace import ::tcltest::*
+  
+  testConstraint X [expr @{...@}]
+  
+  variable SETUP @{#common setup code@}
+  variable CLEANUP @{#common cleanup code@}
+  
+  test example-1 @{@} -setup $SETUP -body @{
+    # First test
+  @} -cleanup $CLEANUP -result @{...@}
+  
+  test example-2 @{@} -constraints X -setup $SETUP -body @{
+    # Second test; constrained
+  @} -cleanup $CLEANUP -result @{...@}
+  
+  test example-3 @{@} @{
+    # Third test; no context required
+  @} @{...@}
+  
+  cleanupTests
+@}
+namespace delete ::example::test
+@end example
+
+
+Le prochain niveau d’organisation est une suite de tests, faite de
+plusieurs fichiers de test. Un script est utilisé pour contrôler la
+suite entière. La fonction de base de ce script est d’appeler
+@code{runAllTests} après avoir fait les initialisation nécessaires. Ce
+script est habituellement appelé @code{all.tcl} car c’est le nom utilisé
+par défaut par @code{runAllTests} quand il combine plusieurs suites de
+tests en une seule.
+
+Voici le draft d’un exemple de script principal pour une suite de tests :
+
+@example
+package require Tcl 8.6
+package require tcltest 2.5
+
+package require example
+::tcltest::configure -testdir \
+        [file dirname [file normalize [info script]]]
+eval ::tcltest::configure $argv
+::tcltest::runAllTests
+@end example
+
+
+@node Compatibilité
+@chapter Compatibilité
+@c COMPATIBILITY
+
+Un certain nombre de commandes et de variables de l’espace de nom
+@code{::tcltest} qui ont été donnés dans les versions précédantes de
+tcltest n’ont pas été documentés ici. Ils ne font plus part de
+l’interface public supporté de tcltest et ne devraient plus être
+utilisés dans les nouvelles suites de tests. Cependant, pour continuer
+de supporter les suites de tests existantes écrite pour cet ancienne
+spécification d’interface, beaucoup de ces commandes et variables
+obsolètes continueront de fonctionner comme avant. Par exemple, dans
+beaucoup de circonstances, @code{configure} sera appelé rapidement
+et automatiquement après que le chargement de l’extension avec
+@code{package require tcltest 2.1} se soit effectué avec succès avec les
+arguments de la variable @code{::argv}. Ceci sert à supporter les suites
+de tests qui dépendent du comportement ancien de tcltest qui était
+d’être configuré automatiquement par la ligne de commande. Les nouveaux
+fichiers de tests ne devraient pas dépendre de ceci, mais devraient
+explicitement inclure.
+
+@example
+eval ::tcltest::configure $::argv
+@end example
+
+ou
+
+@example
+::tcltest::configure @{*@}$::argv
+@end example
+
+pour établir une configuration depuis la ligne de commande.
+
+
+@node Problèmes connus
+@chapter Problèmes connus
+@c KNOWN ISSUES
+
+Il y a deux problèmes connus en relation avec les évaluations imbriquées
+de tests. Le premier est lié au niveau du tas, dans lequel les scripts
+sont exécutés. Les tests imbriqués dans d’autres tests peuvent être
+exécutés au même niveau que les tests du niveau supérieur. Par exemple
+le code suivant :
+
+@example
+test level-1.1 @{level 1@} @{
+    -body @{
+        test level-2.1 @{level 2@} @{
+        @}
+    @}
+@}
+@end example
+
+tout script exécuté dans @code{level-2.1} peut être exécuté au même
+niveau dans le tas que le script défini dans @code{level-1.1}.
+
+En plus, alors que ces deux tests sont exécutés, les résultats seront
+rapportés uniquement pas @code{cleanupTests} pour les tests du même
+niveau que @code{level-1.1}. Cependant, les resultats de tests de tous
+ceux qui ont été exécutés avant @code{level-1.1} seront disponibles
+quand le test @code{level-2.1} sera exécuté. Cela veut dire que si vous
+essayez d’accéder aux résultats du test @code{level-2.1}, on pourrait
+vous rétoirque que @code{m} tests ont été exécuté et que @code{n} tests
+ont été sautés, @code{o} tests ont été passés et @code{p} tests ont
+échoués où @code{m}, @code{n}, @code{o} et @code{p} se réfèrent aux
+tests qui auront été exécutés au même niveau de le test
+@code{level-1.1}. 
+
+L’implémentation de la comparaison des sorties et des erreurs de la
+commande de test dépend de l’usage de la commande @code{puts} dans le
+code de votre application. La sortie est interceptée en redéfinissant la
+commande globle @code{puts} alors que le script défini est exécuté. Les
+erreurs renvoyées par des procédures en C et écrites directement par les
+applications C ne seront pas capturé par la commande de test. C’est
+pourquoi, l’usage des options @code{-ouput} et @code{errorOutput} n’est
+utile que pour les applications en Tcl pure qui utilise @code{puts} pour
+leur sortie.
+
+
